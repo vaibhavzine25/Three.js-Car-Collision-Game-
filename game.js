@@ -32,6 +32,7 @@ const noiseGen = new SimpleNoise();
 // --- SCENE SETUP ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x10102a);
+// Fog adjusted to be closer, like the original video
 scene.fog = new THREE.Fog(0x10102a, 20, 50);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -44,7 +45,7 @@ renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
 // --- LIGHTS ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Increased intensity
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -54,7 +55,7 @@ directionalLight.shadow.mapSize.width = 1024;
 directionalLight.shadow.mapSize.height = 1024;
 scene.add(directionalLight);
 
-// --- GAME STATE & CONSTANTS ---
+// --- GAME STATE & CONSTANTS (Undivided Road Setup) ---
 const ROAD_WIDTH = 12;
 const SEGMENT_LENGTH = 100;
 const NUM_SEGMENTS = 3;
@@ -90,7 +91,7 @@ function createWorldSegment(index) {
     // Create reusable geometries and materials
     const roadGeometry = new THREE.PlaneGeometry(ROAD_WIDTH, SEGMENT_LENGTH);
     const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
-    const grassGeometry = new THREE.PlaneGeometry(1000, SEGMENT_LENGTH); // Increased width
+    const grassGeometry = new THREE.PlaneGeometry(1000, SEGMENT_LENGTH);
     const grassMaterial = new THREE.MeshStandardMaterial({ color: 0x1f511f });
     
     // Road
@@ -101,18 +102,18 @@ function createWorldSegment(index) {
 
     // Grass
     const leftGrass = new THREE.Mesh(grassGeometry, grassMaterial);
-    leftGrass.position.set(-(ROAD_WIDTH / 2 + 500), -0.01, 0); // Adjusted position
+    leftGrass.position.set(-(ROAD_WIDTH / 2 + 500), -0.01, 0);
     leftGrass.rotation.x = -Math.PI / 2;
     leftGrass.receiveShadow = true;
     segmentGroup.add(leftGrass);
 
     const rightGrass = new THREE.Mesh(grassGeometry, grassMaterial);
-    rightGrass.position.set(ROAD_WIDTH / 2 + 500, -0.01, 0); // Adjusted position
+    rightGrass.position.set(ROAD_WIDTH / 2 + 500, -0.01, 0);
     rightGrass.rotation.x = -Math.PI / 2;
     rightGrass.receiveShadow = true;
     segmentGroup.add(rightGrass);
     
-    // Dashed lines
+    // Dashed lines texture
     const canvas = document.createElement('canvas');
     canvas.width = 16;
     canvas.height = 64;
@@ -125,30 +126,17 @@ function createWorldSegment(index) {
     lineTexture.repeat.set(1, SEGMENT_LENGTH / 3);
     const lineMaterial = new THREE.MeshBasicMaterial({ map: lineTexture, transparent: true });
     const lineGeometry = new THREE.PlaneGeometry(0.2, SEGMENT_LENGTH);
-
-    // Left lane divider
+    
+    // Undivided road lines
     const leftLine = new THREE.Mesh(lineGeometry, lineMaterial);
     leftLine.position.set(-LANE_WIDTH / 2, 0.01, 0);
     leftLine.rotation.x = -Math.PI / 2;
     segmentGroup.add(leftLine);
     
-    // Right lane divider
     const rightLine = new THREE.Mesh(lineGeometry, lineMaterial);
     rightLine.position.set(LANE_WIDTH / 2, 0.01, 0);
     rightLine.rotation.x = -Math.PI / 2;
     segmentGroup.add(rightLine);
-
-    // Center double lines
-    const centerLine1 = new THREE.Mesh(lineGeometry, lineMaterial);
-    centerLine1.position.set(-0.15, 0.01, 0);
-    centerLine1.rotation.x = -Math.PI / 2;
-    segmentGroup.add(centerLine1);
-
-    const centerLine2 = new THREE.Mesh(lineGeometry, lineMaterial);
-    centerLine2.position.set(0.15, 0.01, 0);
-    centerLine2.rotation.x = -Math.PI / 2;
-    segmentGroup.add(centerLine2);
-
 
     // Position the whole segment
     segmentGroup.position.z = index * SEGMENT_LENGTH;
@@ -255,7 +243,7 @@ function createPlayerCar() {
     return car;
 }
 
-playerCar = createPlayerCar();
+playerCar = createPlayerCar(); // Starts at (0, 0.5, 0) by default
 playerCarBoundingBox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3());
 
 // --- ENEMY CARS ---
@@ -319,6 +307,7 @@ function createEnemyCar() {
     car.position.y = 0.5;
     car.rotation.y = Math.PI;
     
+    // Spawn in any of the three lanes
     const lane = LANE_POSITIONS[Math.floor(Math.random() * LANE_POSITIONS.length)];
     car.position.x = lane;
     car.position.z = playerCar.position.z + 60 + Math.random() * 60;
@@ -364,7 +353,9 @@ function updatePlayerCar() {
     if (keys['arrowleft'] || keys['a']) playerCar.position.x -= playerPhysics.steerSpeed;
     if (keys['arrowright'] || keys['d']) playerCar.position.x += playerPhysics.steerSpeed;
     
+    // Clamp player car to road boundaries
     playerCar.position.x = Math.max(-ROAD_WIDTH/2 + 1, Math.min(ROAD_WIDTH/2 - 1, playerCar.position.x));
+    
     playerCar.position.z += playerPhysics.speed;
 
     playerCar.wheels.forEach(wheel => { wheel.rotation.x -= playerPhysics.speed * 2; });
@@ -437,7 +428,7 @@ function restartGame() {
     gameState.enemySpawnRate = 1.5;
     gameState.enemyBaseSpeed = 0.1;
     
-    playerCar.position.set(0, 0.5, 0);
+    playerCar.position.set(0, 0.5, 0); // Reset to center
     playerPhysics.speed = 0;
     
     worldSegments.forEach((segment, i) => {
